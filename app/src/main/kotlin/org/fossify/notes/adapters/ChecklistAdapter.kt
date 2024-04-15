@@ -1,7 +1,7 @@
 package org.fossify.notes.adapters
 
+import android.annotation.SuppressLint
 import android.graphics.Paint
-import android.graphics.drawable.Drawable
 import android.util.TypedValue
 import android.view.Menu
 import android.view.MotionEvent
@@ -13,7 +13,6 @@ import org.fossify.commons.activities.BaseSimpleActivity
 import org.fossify.commons.adapters.MyRecyclerViewAdapter
 import org.fossify.commons.extensions.applyColorFilter
 import org.fossify.commons.extensions.beVisibleIf
-import org.fossify.commons.extensions.getColoredDrawableWithColor
 import org.fossify.commons.extensions.removeBit
 import org.fossify.commons.helpers.SORT_BY_CUSTOM
 import org.fossify.commons.interfaces.ItemMoveCallback
@@ -31,19 +30,19 @@ import org.fossify.notes.models.ChecklistItem
 import java.util.Collections
 
 class ChecklistAdapter(
-    activity: BaseSimpleActivity, var items: MutableList<ChecklistItem>, val listener: ChecklistItemsListener?,
-    recyclerView: MyRecyclerView, val showIcons: Boolean, itemClick: (Any) -> Unit
-) :
-    MyRecyclerViewAdapter(activity, recyclerView, itemClick), ItemTouchHelperContract {
+    activity: BaseSimpleActivity,
+    var items: MutableList<ChecklistItem>,
+    val listener: ChecklistItemsListener?,
+    recyclerView: MyRecyclerView,
+    val showIcons: Boolean,
+    itemClick: (Any) -> Unit,
+) : MyRecyclerViewAdapter(activity, recyclerView, itemClick), ItemTouchHelperContract {
 
-    private lateinit var crossDrawable: Drawable
-    private lateinit var checkDrawable: Drawable
     private var touchHelper: ItemTouchHelper? = null
     private var startReorderDragListener: StartReorderDragListener
 
     init {
         setupDragListener(true)
-        initDrawables()
 
         touchHelper = ItemTouchHelper(ItemMoveCallback(this))
         touchHelper!!.attachToRecyclerView(recyclerView)
@@ -78,9 +77,15 @@ class ChecklistAdapter(
 
     override fun getItemKeyPosition(key: Int) = items.indexOfFirst { it.id == key }
 
-    override fun onActionModeCreated() {}
+    @SuppressLint("NotifyDataSetChanged")
+    override fun onActionModeCreated() {
+        notifyDataSetChanged()
+    }
 
-    override fun onActionModeDestroyed() {}
+    @SuppressLint("NotifyDataSetChanged")
+    override fun onActionModeDestroyed() {
+        notifyDataSetChanged()
+    }
 
     override fun prepareActionMode(menu: Menu) {
         val selectedItems = getSelectedItems()
@@ -97,25 +102,14 @@ class ChecklistAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = items[position]
-        holder.bindView(item, true, true) { itemView, layoutPosition ->
+        holder.bindView(item, allowSingleClick = true, allowLongClick = true) { itemView, _ ->
             setupView(itemView, item, holder)
         }
+
         bindViewHolder(holder)
     }
 
     override fun getItemCount() = items.size
-
-    private fun initDrawables() {
-        val res = activity.resources
-        crossDrawable = res.getColoredDrawableWithColor(
-            org.fossify.commons.R.drawable.ic_cross_vector,
-            res.getColor(org.fossify.commons.R.color.md_red_700)
-        )
-        checkDrawable = res.getColoredDrawableWithColor(
-            org.fossify.commons.R.drawable.ic_check_vector,
-            res.getColor(org.fossify.commons.R.color.md_green_700)
-        )
-    }
 
     private fun renameChecklistItem() {
         val item = getSelectedItems().first()
@@ -211,13 +205,12 @@ class ChecklistAdapter(
                 }
             }
 
-            checklistImage.setImageDrawable(if (checklistItem.isDone) checkDrawable else crossDrawable)
-            checklistImage.beVisibleIf(showIcons && selectedKeys.isEmpty())
+            checklistCheckbox.isChecked = checklistItem.isDone
             checklistHolder.isSelected = isSelected
 
             checklistDragHandle.beVisibleIf(selectedKeys.isNotEmpty())
             checklistDragHandle.applyColorFilter(textColor)
-            checklistDragHandle.setOnTouchListener { v, event ->
+            checklistDragHandle.setOnTouchListener { _, event ->
                 if (event.action == MotionEvent.ACTION_DOWN) {
                     startReorderDragListener.requestDrag(holder)
                 }
